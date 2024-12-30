@@ -2,8 +2,20 @@ self.onmessage = async function(e) {
     const { imageData, quality, width, height, format } = e.data;
     
     try {
-        // 创建图片对象
-        const img = await createImageBitmap(imageData);
+        // 将base64转换为Blob
+        const base64Data = imageData.split(',')[1];
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: format });
+        
+        // 从Blob创建ImageBitmap
+        const img = await createImageBitmap(blob);
         
         // 创建离屏canvas
         const canvas = new OffscreenCanvas(width, height);
@@ -20,24 +32,25 @@ self.onmessage = async function(e) {
         ctx.drawImage(img, 0, 0, width, height);
         
         // 压缩图片
-        const blob = await canvas.convertToBlob({
+        const compressedBlob = await canvas.convertToBlob({
             type: format,
             quality: quality / 100
         });
         
         // 转换为base64
         const reader = new FileReader();
-        reader.readAsDataURL(blob);
+        reader.readAsDataURL(compressedBlob);
         reader.onloadend = function() {
             self.postMessage({
                 success: true,
                 result: {
                     url: reader.result,
-                    size: blob.size
+                    size: compressedBlob.size
                 }
             });
         };
     } catch (error) {
+        console.error('Worker中压缩处理出错:', error);
         self.postMessage({
             success: false,
             error: error.message

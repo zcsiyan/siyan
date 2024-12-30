@@ -150,9 +150,18 @@ async function compressImageFile(file) {
                                         mimeType: outputFormat.value
                                     });
                                 } else {
+                                    console.error('Worker返回错误:', e.data.error);
                                     reject(new Error(e.data.error));
                                 }
                             };
+                            
+                            worker.onerror = function(error) {
+                                worker.busy = false;
+                                console.error('Worker错误:', error);
+                                reject(error);
+                            };
+
+                            // 发送数据到worker
                             worker.postMessage({
                                 imageData: e.target.result,
                                 quality: qualitySlider.value,
